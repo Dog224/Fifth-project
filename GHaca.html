@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gacha Heroes</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&amp;family=Quicksand:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(2deg); }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+      50% { box-shadow: 0 0 40px currentColor, 0 0 80px currentColor; }
+    }
+    @keyframes reveal {
+      0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+      50% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    @keyframes sparkle {
+      0%, 100% { opacity: 0; transform: scale(0); }
+      50% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes slide-up {
+      0% { transform: translateY(100%); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+    .shimmer-bg {
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+    .float-anim { animation: float 3s ease-in-out infinite; }
+    .pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+    .reveal-anim { animation: reveal 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    .sparkle { animation: sparkle 1.5s ease-in-out infinite; }
+    .slide-up { animation: slide-up 0.5s ease-out forwards; }
+    .rarity-common { --rarity-color: #9ca3af; }
+    .rarity-rare { --rarity-color: #3b82f6; }
+    .rarity-epic { --rarity-color: #a855f7; }
+    .rarity-legendary { --rarity-color: #f59e0b; }
+    .rarity-mythic { --rarity-color: #ef4444; }
+    .card-glow {
+      box-shadow: 0 0 30px var(--rarity-color), 0 0 60px var(--rarity-color), inset 0 0 30px rgba(255,255,255,0.1);
+    }
+    .star { color: var(--rarity-color); text-shadow: 0 0 10px var(--rarity-color); }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full">
+  <div id="app" class="h-full w-full overflow-auto" style="background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%); font-family: 'Quicksand', sans-serif;">
+   <!-- Main Container -->
+   <div class="min-h-full flex flex-col items-center p-4 md:p-8">
+    <!-- Header -->
+    <header class="text-center mb-6 slide-up">
+     <h1 id="game-title" class="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-400 to-purple-500" style="font-family: 'Cinzel', serif;">Gacha Heroes</h1>
+     <p class="text-purple-300 mt-2 text-sm md:text-base">Collect legendary heroes!</p>
+    </header><!-- Currency Display -->
+    <div class="flex gap-4 mb-6 slide-up" style="animation-delay: 0.1s;">
+     <div class="bg-gradient-to-r from-yellow-600/30 to-yellow-400/30 backdrop-blur-sm rounded-full px-5 py-2 flex items-center gap-2 border border-yellow-500/50">
+      <span class="text-2xl">💎</span> <span id="gems-count" class="text-yellow-300 font-bold text-lg">1000</span>
+     </div>
+     <div class="bg-gradient-to-r from-purple-600/30 to-pink-400/30 backdrop-blur-sm rounded-full px-5 py-2 flex items-center gap-2 border border-purple-500/50">
+      <span class="text-2xl">🎫</span> <span id="tickets-count" class="text-purple-300 font-bold text-lg">10</span>
+     </div>
+    </div><!-- Pull Area -->
+    <div id="pull-area" class="relative w-full max-w-md aspect-square flex items-center justify-center mb-6">
+     <!-- Idle State -->
+     <div id="idle-display" class="text-center">
+      <div class="w-32 h-32 md:w-40 md:h-40 mx-auto rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center float-anim shadow-2xl border-4 border-white/20">
+       <span class="text-6xl md:text-7xl">🌟</span>
+      </div>
+      <p class="text-purple-300 mt-4 text-sm">Tap the button to summon!</p>
+     </div><!-- Pull Result (hidden initially) -->
+     <div id="pull-result" class="hidden absolute inset-0 flex items-center justify-center">
+      <div id="character-card" class="w-48 md:w-56 rounded-2xl overflow-hidden transform card-glow">
+       <div id="card-bg" class="p-4 text-center" style="background: linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(0,0,0,0.3) 100%);">
+        <div id="card-stars" class="mb-2"></div>
+        <div id="card-avatar" class="text-7xl md:text-8xl mb-2"></div>
+        <h3 id="card-name" class="text-white font-bold text-lg" style="font-family: 'Cinzel', serif;"></h3>
+        <p id="card-rarity" class="text-sm font-semibold mt-1"></p>
+        <p id="card-element" class="text-xs text-white/70 mt-1"></p>
+       </div>
+      </div>
+     </div><!-- Sparkles -->
+     <div id="sparkles" class="hidden absolute inset-0 pointer-events-none overflow-hidden">
+      <div class="sparkle absolute top-1/4 left-1/4 text-3xl" style="animation-delay: 0s;">
+       ✨
+      </div>
+      <div class="sparkle absolute top-1/3 right-1/4 text-2xl" style="animation-delay: 0.3s;">
+       ⭐
+      </div>
+      <div class="sparkle absolute bottom-1/4 left-1/3 text-3xl" style="animation-delay: 0.6s;">
+       ✨
+      </div>
+      <div class="sparkle absolute bottom-1/3 right-1/3 text-2xl" style="animation-delay: 0.9s;">
+       💫
+      </div>
+      <div class="sparkle absolute top-1/2 left-1/5 text-xl" style="animation-delay: 0.2s;">
+       ⭐
+      </div>
+      <div class="sparkle absolute top-1/5 right-1/3 text-xl" style="animation-delay: 0.5s;">
+       ✨
+      </div>
+     </div>
+    </div><!-- Pull Buttons -->
+    <div class="flex flex-col sm:flex-row gap-3 mb-8 slide-up" style="animation-delay: 0.2s;">
+     <button id="single-pull-btn" class="group relative px-8 py-4 rounded-xl font-bold text-white overflow-hidden transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"> <span class="relative z-10 flex items-center gap-2"> <span id="pull-button-text">Summon x1</span> <span class="text-yellow-300">💎100</span> </span>
+      <div class="absolute inset-0 shimmer-bg opacity-0 group-hover:opacity-100 transition-opacity"></div></button> <button id="multi-pull-btn" class="group relative px-8 py-4 rounded-xl font-bold text-white overflow-hidden transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"> <span class="relative z-10 flex items-center gap-2"> Summon x10 <span class="text-yellow-300">💎900</span> </span>
+      <div class="absolute inset-0 shimmer-bg opacity-0 group-hover:opacity-100 transition-opacity"></div></button> <button id="battle-tab-btn" class="px-8 py-4 rounded-xl font-bold text-white overflow-hidden transition-all hover:scale-105 active:scale-95" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"> <span class="flex items-center gap-2"> ⚔️ Battle </span> </button>
+    </div><!-- Battle Section (hidden by default) -->
+    <div id="battle-section" class="hidden w-full max-w-4xl">
+     <div class="bg-gradient-to-b from-red-900/30 to-black/50 rounded-2xl p-6 border border-red-500/30">
+      <!-- Battle Header -->
+      <div class="flex items-center justify-between mb-6"><button id="back-btn" class="text-purple-400 hover:text-purple-300 font-bold flex items-center gap-2">← Back</button>
+       <h2 class="text-2xl font-bold text-white" style="font-family: 'Cinzel', serif;">⚔️ Battle Arena</h2>
+       <div class="w-12"></div>
+      </div><!-- Team Selection -->
+      <div class="mb-6">
+       <h3 class="text-white font-bold mb-3">Select Your Team (Pick 1-3 Heroes)</h3>
+       <div id="team-selection-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-4">
+        <!-- Heroes will render here -->
+       </div>
+       <div id="selected-team" class="flex gap-2 flex-wrap">
+        <!-- Selected heroes will show here -->
+       </div><button id="start-battle-btn" class="w-full mt-4 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed">Start Battle!</button>
+      </div>
+     </div>
+    </div><!-- Battle Arena -->
+    <div id="battle-arena" class="hidden w-full max-w-4xl">
+     <div class="bg-gradient-to-b from-red-900/40 to-black/60 rounded-2xl p-6 border border-red-500/40 min-h-96">
+      <!-- Enemy Team -->
+      <div class="text-center mb-8">
+       <h3 class="text-red-400 font-bold mb-2">Enemy Team</h3>
+       <div id="enemy-team" class="flex justify-center gap-4 flex-wrap">
+        <!-- Enemy heroes render here -->
+       </div>
+      </div><!-- Battle Log -->
+      <div id="battle-log" class="bg-black/40 rounded-xl p-4 mb-6 h-40 overflow-y-auto text-sm text-purple-300 space-y-1">
+       <!-- Battle actions log here -->
+      </div><!-- Your Team -->
+      <div class="text-center mb-6">
+       <h3 class="text-green-400 font-bold mb-2">Your Team</h3>
+       <div id="your-team" class="flex justify-center gap-4 flex-wrap">
+        <!-- Your heroes render here -->
+       </div>
+      </div><!-- Battle Controls -->
+      <div class="flex gap-3 justify-center"><button id="auto-battle-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-all">Auto Battle</button> <button id="exit-battle-btn" class="px-6 py-2 bg-gray-600 hover:bg-gray-700 text-white font-bold rounded-lg transition-all">Exit</button>
+      </div>
+     </div>
+    </div><!-- Collection Section -->
+    <div class="w-full max-w-4xl slide-up" style="animation-delay: 0.3s;">
+     <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl md:text-2xl font-bold text-white" style="font-family: 'Cinzel', serif;">📚 Your Collection</h2><span id="collection-count" class="text-purple-300 text-sm bg-purple-900/50 px-3 py-1 rounded-full">0 / 15</span>
+     </div>
+     <div id="collection-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+      <!-- Collection items will be rendered here -->
+     </div>
+     <p id="empty-collection" class="text-center text-purple-400/60 py-8">No heroes collected yet. Start summoning!</p>
+    </div><!-- Rates Info -->
+    <div class="mt-8 text-center text-purple-400/60 text-xs slide-up" style="animation-delay: 0.4s;">
+     <p>Drop Rates: ⭐ Common 50% | ⭐⭐ Rare 30% | ⭐⭐⭐ Epic 15% | ⭐⭐⭐⭐ Legendary 4% | ⭐⭐⭐⭐⭐ Mythic 1%</p>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Character Database
+    const CHARACTERS = [
+      { id: 'luna', name: 'Luna', emoji: '🧙‍♀️', element: 'Light', rarity: 'mythic', stars: 5 },
+      { id: 'drake', name: 'Drake', emoji: '🐉', element: 'Fire', rarity: 'legendary', stars: 4 },
+      { id: 'frost', name: 'Frost Queen', emoji: '❄️', element: 'Ice', rarity: 'legendary', stars: 4 },
+      { id: 'shadow', name: 'Shadow', emoji: '🥷', element: 'Dark', rarity: 'epic', stars: 3 },
+      { id: 'phoenix', name: 'Phoenix', emoji: '🔥', element: 'Fire', rarity: 'epic', stars: 3 },
+      { id: 'aurora', name: 'Aurora', emoji: '🌈', element: 'Light', rarity: 'epic', stars: 3 },
+      { id: 'storm', name: 'Storm', emoji: '⚡', element: 'Thunder', rarity: 'rare', stars: 2 },
+      { id: 'ivy', name: 'Ivy', emoji: '🌿', element: 'Nature', rarity: 'rare', stars: 2 },
+      { id: 'wave', name: 'Wave', emoji: '🌊', element: 'Water', rarity: 'rare', stars: 2 },
+      { id: 'rocky', name: 'Rocky', emoji: '🪨', element: 'Earth', rarity: 'rare', stars: 2 },
+      { id: 'spark', name: 'Spark', emoji: '✨', element: 'Light', rarity: 'common', stars: 1 },
+      { id: 'ember', name: 'Ember', emoji: '🕯️', element: 'Fire', rarity: 'common', stars: 1 },
+      { id: 'breeze', name: 'Breeze', emoji: '💨', element: 'Wind', rarity: 'common', stars: 1 },
+      { id: 'pebble', name: 'Pebble', emoji: '🥌', element: 'Earth', rarity: 'common', stars: 1 },
+      { id: 'dewdrop', name: 'Dewdrop', emoji: '💧', element: 'Water', rarity: 'common', stars: 1 }
+    ];
+
+    const RARITY_COLORS = {
+      common: { class: 'rarity-common', text: 'text-gray-400', bg: 'from-gray-600 to-gray-800' },
+      rare: { class: 'rarity-rare', text: 'text-blue-400', bg: 'from-blue-600 to-blue-900' },
+      epic: { class: 'rarity-epic', text: 'text-purple-400', bg: 'from-purple-600 to-purple-900' },
+      legendary: { class: 'rarity-legendary', text: 'text-yellow-400', bg: 'from-yellow-500 to-orange-700' },
+      mythic: { class: 'rarity-mythic', text: 'text-red-400', bg: 'from-red-500 to-pink-700' }
+    };
+
+    const RARITY_RATES = {
+      mythic: 0.01,
+      legendary: 0.04,
+      epic: 0.15,
+      rare: 0.30,
+      common: 0.50
+    };
+
+    // Game State
+    let gems = 1000;
+    let tickets = 10;
+    let collection = [];
+    let isPulling = false;
+    let selectedTeam = [];
+    let battleState = null;
+
+    // Default Config
+    const defaultConfig = {
+      game_title: 'Gacha Heroes',
+      pull_button_text: 'Summon x1',
+      primary_color: '#667eea',
+      secondary_color: '#302b63',
+      text_color: '#ffffff',
+      accent_color: '#f59e0b',
+      surface_color: '#24243e'
+    };
+
+    // Initialize SDKs
+    async function initializeApp() {
+      // Initialize Element SDK
+      if (window.elementSdk) {
+        window.elementSdk.init({
+          defaultConfig,
+          onConfigChange: async (config) => {
+            document.getElementById('game-title').textContent = config.game_title || defaultConfig.game_title;
+            document.getElementById('pull-button-text').textContent = config.pull_button_text || defaultConfig.pull_button_text;
+            
+            // Apply colors
+            const primaryColor = config.primary_color || defaultConfig.primary_color;
+            const textColor = config.text_color || defaultConfig.text_color;
+            const secondaryColor = config.secondary_color || defaultConfig.secondary_color;
+            const surfaceColor = config.surface_color || defaultConfig.surface_color;
+            const accentColor = config.accent_color || defaultConfig.accent_color;
+            
+            document.getElementById('app').style.background = `linear-gradient(135deg, ${surfaceColor} 0%, ${secondaryColor} 50%, ${surfaceColor} 100%)`;
+            document.getElementById('single-pull-btn').style.background = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
+          },
+          mapToCapabilities: (config) => ({
+            recolorables: [
+              {
+                get: () => config.surface_color || defaultConfig.surface_color,
+                set: (v) => { config.surface_color = v; window.elementSdk.setConfig({ surface_color: v }); }
+              },
+              {
+                get: () => config.secondary_color || defaultConfig.secondary_color,
+                set: (v) => { config.secondary_color = v; window.elementSdk.setConfig({ secondary_color: v }); }
+              },
+              {
+                get: () => config.text_color || defaultConfig.text_color,
+                set: (v) => { config.text_color = v; window.elementSdk.setConfig({ text_color: v }); }
+              },
+              {
+                get: () => config.primary_color || defaultConfig.primary_color,
+                set: (v) => { config.primary_color = v; window.elementSdk.setConfig({ primary_color: v }); }
+              },
+              {
+                get: () => config.accent_color || defaultConfig.accent_color,
+                set: (v) => { config.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }
+              }
+            ],
+            borderables: [],
+            fontEditable: undefined,
+            fontSizeable: undefined
+          }),
+          mapToEditPanelValues: (config) => new Map([
+            ['game_title', config.game_title || defaultConfig.game_title],
+            ['pull_button_text', config.pull_button_text || defaultConfig.pull_button_text]
+          ])
+        });
+      }
+
+      // Initialize Data SDK
+      if (window.dataSdk) {
+        const result = await window.dataSdk.init({
+          onDataChanged: (data) => {
+            collection = data;
+            renderCollection();
+          }
+        });
+        if (!result.isOk) {
+          console.error('Failed to initialize data SDK');
+        }
+      }
+
+      // Setup event listeners
+      document.getElementById('single-pull-btn').addEventListener('click', () => doPull(1));
+      document.getElementById('multi-pull-btn').addEventListener('click', () => doPull(10));
+      document.getElementById('battle-tab-btn').addEventListener('click', openBattleScreen);
+      document.getElementById('back-btn').addEventListener('click', closeBattleScreen);
+      document.getElementById('start-battle-btn').addEventListener('click', startBattle);
+      document.getElementById('auto-battle-btn').addEventListener('click', autoBattle);
+      document.getElementById('exit-battle-btn').addEventListener('click', exitBattle);
+
+      renderCollection();
+    }
+
+    // Gacha Pull Logic
+    function getRandomCharacter() {
+      const rand = Math.random();
+      let cumulative = 0;
+      let selectedRarity = 'common';
+
+      for (const [rarity, rate] of Object.entries(RARITY_RATES)) {
+        cumulative += rate;
+        if (rand <= cumulative) {
+          selectedRarity = rarity;
+          break;
+        }
+      }
+
+      const candidates = CHARACTERS.filter(c => c.rarity === selectedRarity);
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    async function doPull(count) {
+      if (isPulling) return;
+
+      const cost = count === 1 ? 100 : 900;
+      if (gems < cost) {
+        showToast('Not enough gems! 💎');
+        return;
+      }
+
+      // Check data limit
+      if (collection.length >= 999) {
+        showToast('Collection full! Delete some heroes first.');
+        return;
+      }
+
+      isPulling = true;
+      gems -= cost;
+      updateCurrency();
+
+      const buttons = [document.getElementById('single-pull-btn'), document.getElementById('multi-pull-btn')];
+      buttons.forEach(btn => btn.disabled = true);
+
+      for (let i = 0; i < count; i++) {
+        const character = getRandomCharacter();
+        await showPullAnimation(character);
+        
+        // Save to collection
+        if (window.dataSdk && collection.length < 999) {
+          const result = await window.dataSdk.create({
+            character_id: character.id,
+            obtained_at: new Date().toISOString()
+          });
+          if (!result.isOk) {
+            console.error('Failed to save character');
+          }
+        }
+
+        if (i < count - 1) {
+          await sleep(500);
+        }
+      }
+
+      buttons.forEach(btn => btn.disabled = false);
+      isPulling = false;
+
+      // Reset to idle after a delay
+      setTimeout(() => {
+        document.getElementById('idle-display').classList.remove('hidden');
+        document.getElementById('pull-result').classList.add('hidden');
+        document.getElementById('sparkles').classList.add('hidden');
+      }, 2000);
+    }
+
+    async function showPullAnimation(character) {
+      const idleDisplay = document.getElementById('idle-display');
+      const pullResult = document.getElementById('pull-result');
+      const sparkles = document.getElementById('sparkles');
+      const characterCard = document.getElementById('character-card');
+      const cardBg = document.getElementById('card-bg');
+      const cardStars = document.getElementById('card-stars');
+      const cardAvatar = document.getElementById('card-avatar');
+      const cardName = document.getElementById('card-name');
+      const cardRarity = document.getElementById('card-rarity');
+      const cardElement = document.getElementById('card-element');
+
+      const rarityInfo = RARITY_COLORS[character.rarity];
+
+      // Hide idle, show pull result
+      idleDisplay.classList.add('hidden');
+      pullResult.classList.remove('hidden');
+      sparkles.classList.remove('hidden');
+
+      // Setup card
+      characterCard.className = `w-48 md:w-56 rounded-2xl overflow-hidden transform card-glow reveal-anim ${rarityInfo.class}`;
+      cardBg.style.background = `linear-gradient(180deg, rgba(255,255,255,0.2) 0%, rgba(0,0,0,0.5) 100%)`;
+      cardStars.innerHTML = '⭐'.repeat(character.stars);
+      cardStars.className = `mb-2 star ${rarityInfo.class}`;
+      cardAvatar.textContent = character.emoji;
+      cardName.textContent = character.name;
+      cardRarity.textContent = character.rarity.toUpperCase();
+      cardRarity.className = `text-sm font-semibold mt-1 ${rarityInfo.text}`;
+      cardElement.textContent = `⚔️ ${character.element}`;
+
+      await sleep(1500);
+    }
+
+    function renderCollection() {
+      const grid = document.getElementById('collection-grid');
+      const emptyMsg = document.getElementById('empty-collection');
+      const countDisplay = document.getElementById('collection-count');
+
+      // Count unique characters
+      const uniqueIds = new Set(collection.map(c => c.character_id));
+      countDisplay.textContent = `${uniqueIds.size} / ${CHARACTERS.length}`;
+
+      if (collection.length === 0) {
+        grid.innerHTML = '';
+        emptyMsg.classList.remove('hidden');
+        return;
+      }
+
+      emptyMsg.classList.add('hidden');
+
+      // Group by character and count duplicates
+      const charCounts = {};
+      collection.forEach(item => {
+        charCounts[item.character_id] = (charCounts[item.character_id] || 0) + 1;
+      });
+
+      // Build grid
+      let html = '';
+      for (const [charId, count] of Object.entries(charCounts)) {
+        const char = CHARACTERS.find(c => c.id === charId);
+        if (!char) continue;
+
+        const rarityInfo = RARITY_COLORS[char.rarity];
+        html += `
+          <div class="relative group ${rarityInfo.class}">
+            <div class="aspect-square rounded-xl p-2 flex flex-col items-center justify-center transition-transform hover:scale-105 card-glow cursor-pointer" 
+                 style="background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.3));">
+              <span class="text-3xl md:text-4xl mb-1">${char.emoji}</span>
+              <span class="text-white text-xs font-semibold truncate w-full text-center">${char.name}</span>
+              <span class="star text-xs">${'⭐'.repeat(char.stars)}</span>
+            </div>
+            ${count > 1 ? `<span class="absolute -top-1 -right-1 bg-purple-600 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">×${count}</span>` : ''}
+          </div>
+        `;
+      }
+
+      grid.innerHTML = html;
+    }
+
+    function updateCurrency() {
+      document.getElementById('gems-count').textContent = gems;
+      document.getElementById('tickets-count').textContent = tickets;
+    }
+
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-xl shadow-2xl z-50 slide-up';
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // Battle System
+    function openBattleScreen() {
+      const collectionSection = document.querySelector('.w-full.max-w-4xl');
+      collectionSection.classList.add('hidden');
+      document.getElementById('battle-section').classList.remove('hidden');
+      selectedTeam = [];
+      renderTeamSelection();
+    }
+
+    function closeBattleScreen() {
+      document.getElementById('battle-section').classList.add('hidden');
+      document.getElementById('battle-arena').classList.add('hidden');
+      document.querySelector('.w-full.max-w-4xl').classList.remove('hidden');
+      selectedTeam = [];
+    }
+
+    function renderTeamSelection() {
+      const grid = document.getElementById('team-selection-grid');
+      const uniqueIds = new Set(collection.map(c => c.character_id));
+      
+      let html = '';
+      for (const charId of uniqueIds) {
+        const char = CHARACTERS.find(c => c.id === charId);
+        if (!char) continue;
+
+        const rarityInfo = RARITY_COLORS[char.rarity];
+        const isSelected = selectedTeam.some(t => t.id === charId);
+        
+        html += `
+          <button class="relative group transition-all ${isSelected ? 'ring-4 ring-yellow-400' : ''}" 
+                  onclick="toggleTeamMember('${charId}')">
+            <div class="aspect-square rounded-xl p-2 flex flex-col items-center justify-center card-glow ${rarityInfo.class}" 
+                 style="background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(0,0,0,0.3));">
+              <span class="text-3xl mb-1">${char.emoji}</span>
+              <span class="text-white text-xs font-semibold">${char.name}</span>
+              <span class="star text-xs">${'⭐'.repeat(char.stars)}</span>
+            </div>
+          </button>
+        `;
+      }
+      
+      grid.innerHTML = html;
+      renderSelectedTeam();
+    }
+
+    function toggleTeamMember(charId) {
+      if (selectedTeam.some(t => t.id === charId)) {
+        selectedTeam = selectedTeam.filter(t => t.id !== charId);
+      } else if (selectedTeam.length < 3) {
+        const char = CHARACTERS.find(c => c.id === charId);
+        selectedTeam.push(char);
+      }
+      renderTeamSelection();
+      updateStartButton();
+    }
+
+    function renderSelectedTeam() {
+      const container = document.getElementById('selected-team');
+      
+      let html = '';
+      selectedTeam.forEach(char => {
+        html += `
+          <div class="bg-purple-900/50 px-3 py-1 rounded-lg flex items-center gap-2 text-sm text-white">
+            <span>${char.emoji}</span>
+            <span>${char.name}</span>
+            <button class="text-red-400 hover:text-red-300 font-bold" onclick="toggleTeamMember('${char.id}')">×</button>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+
+    function updateStartButton() {
+      const btn = document.getElementById('start-battle-btn');
+      btn.disabled = selectedTeam.length === 0;
+    }
+
+    function startBattle() {
+      if (selectedTeam.length === 0) return;
+
+      // Generate enemy team
+      const enemyTeam = [];
+      for (let i = 0; i < selectedTeam.length; i++) {
+        const randomChar = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)];
+        enemyTeam.push({
+          ...randomChar,
+          id: `enemy_${i}`,
+          hp: 100 + randomChar.stars * 10,
+          maxHp: 100 + randomChar.stars * 10,
+          originalId: randomChar.id
+        });
+      }
+
+      battleState = {
+        playerTeam: selectedTeam.map((char, i) => ({
+          ...char,
+          id: `player_${i}`,
+          hp: 100 + char.stars * 10,
+          maxHp: 100 + char.stars * 10,
+          originalId: char.id
+        })),
+        enemyTeam: enemyTeam,
+        turn: 0,
+        log: ['⚔️ Battle started!']
+      };
+
+      document.getElementById('battle-section').classList.add('hidden');
+      document.getElementById('battle-arena').classList.remove('hidden');
+      renderBattle();
+    }
+
+    function renderBattle() {
+      // Render player team
+      const playerDiv = document.getElementById('your-team');
+      let playerHtml = '';
+      battleState.playerTeam.forEach(hero => {
+        const healthPercent = Math.max(0, (hero.hp / hero.maxHp) * 100);
+        playerHtml += `
+          <div class="text-center">
+            <span class="text-4xl">${hero.emoji}</span>
+            <p class="text-white text-sm font-bold">${hero.name}</p>
+            <div class="w-20 h-2 bg-gray-800 rounded-full overflow-hidden mt-1">
+              <div class="h-full bg-green-500 transition-all" style="width: ${healthPercent}%"></div>
+            </div>
+            <p class="text-xs text-green-400">${hero.hp}/${hero.maxHp}</p>
+          </div>
+        `;
+      });
+      playerDiv.innerHTML = playerHtml;
+
+      // Render enemy team
+      const enemyDiv = document.getElementById('enemy-team');
+      let enemyHtml = '';
+      battleState.enemyTeam.forEach(hero => {
+        const healthPercent = Math.max(0, (hero.hp / hero.maxHp) * 100);
+        enemyHtml += `
+          <div class="text-center">
+            <span class="text-4xl opacity-75">${hero.emoji}</span>
+            <p class="text-red-400 text-sm font-bold">${hero.name}</p>
+            <div class="w-20 h-2 bg-gray-800 rounded-full overflow-hidden mt-1">
+              <div class="h-full bg-red-500 transition-all" style="width: ${healthPercent}%"></div>
+            </div>
+            <p class="text-xs text-red-400">${hero.hp}/${hero.maxHp}</p>
+          </div>
+        `;
+      });
+      enemyDiv.innerHTML = enemyHtml;
+
+      // Update battle log
+      const logDiv = document.getElementById('battle-log');
+      logDiv.innerHTML = battleState.log.map(msg => `<p>${msg}</p>`).join('');
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    async function autoBattle() {
+      const autoBtn = document.getElementById('auto-battle-btn');
+      const exitBtn = document.getElementById('exit-battle-btn');
+      autoBtn.disabled = true;
+      exitBtn.disabled = true;
+
+      while (battleState.playerTeam.some(h => h.hp > 0) && battleState.enemyTeam.some(h => h.hp > 0)) {
+        // Player turn
+        const alivePlayer = battleState.playerTeam.filter(h => h.hp > 0);
+        const aliveEnemy = battleState.enemyTeam.filter(h => h.hp > 0);
+
+        if (alivePlayer.length === 0 || aliveEnemy.length === 0) break;
+
+        const attacker = alivePlayer[Math.floor(Math.random() * alivePlayer.length)];
+        const target = aliveEnemy[Math.floor(Math.random() * aliveEnemy.length)];
+        const damage = 10 + attacker.stars * 5 + Math.floor(Math.random() * 10);
+        
+        target.hp = Math.max(0, target.hp - damage);
+        battleState.log.push(`${attacker.emoji} ${attacker.name} attacks ${target.emoji} ${target.name} for ${damage} damage!`);
+        
+        renderBattle();
+        await sleep(800);
+
+        if (target.hp <= 0) {
+          battleState.log.push(`💀 ${target.name} has been defeated!`);
+          renderBattle();
+          await sleep(600);
+        }
+
+        // Enemy turn
+        const alivePlayer2 = battleState.playerTeam.filter(h => h.hp > 0);
+        const aliveEnemy2 = battleState.enemyTeam.filter(h => h.hp > 0);
+
+        if (aliveEnemy2.length === 0) break;
+
+        const enemyAttacker = aliveEnemy2[Math.floor(Math.random() * aliveEnemy2.length)];
+        const playerTarget = alivePlayer2[Math.floor(Math.random() * alivePlayer2.length)];
+        const enemyDamage = 10 + enemyAttacker.stars * 5 + Math.floor(Math.random() * 10);
+        
+        playerTarget.hp = Math.max(0, playerTarget.hp - enemyDamage);
+        battleState.log.push(`${enemyAttacker.emoji} ${enemyAttacker.name} attacks ${playerTarget.emoji} ${playerTarget.name} for ${enemyDamage} damage!`);
+        
+        renderBattle();
+        await sleep(800);
+
+        if (playerTarget.hp <= 0) {
+          battleState.log.push(`💀 ${playerTarget.name} has been defeated!`);
+          renderBattle();
+          await sleep(600);
+        }
+
+        battleState.turn++;
+      }
+
+      // Determine winner
+      const playerAlive = battleState.playerTeam.some(h => h.hp > 0);
+      const enemyAlive = battleState.enemyTeam.some(h => h.hp > 0);
+
+      if (playerAlive && !enemyAlive) {
+        battleState.log.push('🎉 Victory! You win the battle!');
+        gems += 100;
+        updateCurrency();
+      } else {
+        battleState.log.push('💔 Defeat! Better luck next time!');
+      }
+
+      renderBattle();
+      autoBtn.disabled = false;
+      exitBtn.disabled = false;
+    }
+
+    function exitBattle() {
+      document.getElementById('battle-arena').classList.add('hidden');
+      document.getElementById('battle-section').classList.add('hidden');
+      document.querySelector('.w-full.max-w-4xl').classList.remove('hidden');
+      selectedTeam = [];
+      battleState = null;
+    }
+
+    // Initialize
+    initializeApp();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d4c8bc5304afcf6',t:'MTc3MjI0NjMwOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

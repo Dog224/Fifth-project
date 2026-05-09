@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Target Blaster</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&amp;family=Exo+2:wght@300;400;600&amp;display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    .game-bg {
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 50%, #0f0f2f 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .game-bg::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 20% 80%, rgba(120, 0, 255, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(0, 200, 255, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    
+    .target {
+      position: absolute;
+      cursor: crosshair;
+      transition: transform 0.1s ease-out;
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    .target:hover {
+      transform: scale(1.1);
+    }
+    
+    .target.hit {
+      animation: explode 0.3s ease-out forwards;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes explode {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.5; }
+      100% { transform: scale(0); opacity: 0; }
+    }
+    
+    @keyframes spawn {
+      0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+      100% { transform: scale(1) rotate(0deg); opacity: 1; }
+    }
+    
+    .target.spawning {
+      animation: spawn 0.3s ease-out forwards;
+    }
+    
+    .score-flash {
+      animation: scoreFlash 0.5s ease-out forwards;
+    }
+    
+    @keyframes scoreFlash {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); color: #00ff88; }
+      100% { transform: scale(1); }
+    }
+    
+    .crosshair {
+      cursor: crosshair;
+    }
+    
+    .neon-text {
+      text-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 40px currentColor;
+    }
+    
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .pulse-glow {
+      animation: pulseGlow 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.6); }
+    }
+    
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      opacity: 0.5;
+      animation: twinkle 3s ease-in-out infinite;
+    }
+    
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.8; }
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="h-full">
+  <div id="app" class="game-bg h-full w-full flex flex-col crosshair"><!-- Stars background -->
+   <div id="stars"></div><!-- Header -->
+   <header class="relative z-10 p-4 flex justify-between items-center">
+    <h1 id="game-title" class="text-2xl md:text-3xl font-black text-cyan-400 neon-text" style="font-family: 'Orbitron', sans-serif;">TARGET BLASTER</h1>
+    <div class="flex gap-4 items-center">
+     <div class="glass-panel rounded-xl px-4 py-2"><span class="text-gray-400 text-sm" style="font-family: 'Exo 2', sans-serif;">SCORE</span>
+      <p id="score" class="text-2xl font-bold text-emerald-400 neon-text" style="font-family: 'Orbitron', sans-serif;">0</p>
+     </div>
+     <div class="glass-panel rounded-xl px-4 py-2"><span class="text-gray-400 text-sm" style="font-family: 'Exo 2', sans-serif;">TIME</span>
+      <p id="timer" class="text-2xl font-bold text-amber-400 neon-text" style="font-family: 'Orbitron', sans-serif;">30</p>
+     </div>
+     <div class="glass-panel rounded-xl px-4 py-2"><span class="text-gray-400 text-sm" style="font-family: 'Exo 2', sans-serif;">HITS</span>
+      <p id="hits" class="text-2xl font-bold text-rose-400 neon-text" style="font-family: 'Orbitron', sans-serif;">0</p>
+     </div>
+    </div>
+   </header><!-- Game Area -->
+   <main id="game-area" class="flex-1 relative overflow-hidden"><!-- Targets will spawn here -->
+   </main><!-- Start Screen Overlay -->
+   <div id="start-screen" class="absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div class="text-center">
+     <h2 class="text-4xl md:text-6xl font-black text-cyan-400 neon-text mb-6" style="font-family: 'Orbitron', sans-serif;">TARGET BLASTER</h2>
+     <p class="text-gray-300 text-lg mb-8" style="font-family: 'Exo 2', sans-serif;">Click targets to score points!<br>
+      Different targets = different points</p>
+     <div class="flex justify-center gap-6 mb-8">
+      <div class="text-center">
+       <div class="w-12 h-12 mx-auto mb-2">
+        <svg viewbox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="#ef4444" stroke="#fca5a5" stroke-width="3" /> <circle cx="50" cy="50" r="30" fill="#fff" stroke="#fca5a5" stroke-width="2" /> <circle cx="50" cy="50" r="15" fill="#ef4444" />
+        </svg>
+       </div><span class="text-emerald-400 font-bold" style="font-family: 'Orbitron', sans-serif;">+10</span>
+      </div>
+      <div class="text-center">
+       <div class="w-10 h-10 mx-auto mb-2">
+        <svg viewbox="0 0 100 100"><circle cx="50" cy="50" r="45" fill="#f59e0b" stroke="#fcd34d" stroke-width="3" /> <circle cx="50" cy="50" r="25" fill="#fff" stroke="#fcd34d" stroke-width="2" /> <circle cx="50" cy="50" r="10" fill="#f59e0b" />
+        </svg>
+       </div><span class="text-emerald-400 font-bold" style="font-family: 'Orbitron', sans-serif;">+25</span>
+      </div>
+      <div class="text-center">
+       <div class="w-8 h-8 mx-auto mb-2">
+        <svg viewbox="0 0 100 100"><polygon points="50,5 61,40 98,40 68,62 79,97 50,75 21,97 32,62 2,40 39,40" fill="#a855f7" stroke="#d8b4fe" stroke-width="3" />
+        </svg>
+       </div><span class="text-emerald-400 font-bold" style="font-family: 'Orbitron', sans-serif;">+50</span>
+      </div>
+     </div><button id="start-btn" class="px-8 py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-bold text-xl rounded-full pulse-glow hover:from-cyan-400 hover:to-emerald-400 transition-all duration-300" style="font-family: 'Orbitron', sans-serif;"> START GAME </button>
+    </div>
+   </div><!-- Game Over Overlay -->
+   <div id="game-over" class="absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm hidden">
+    <div class="text-center">
+     <h2 class="text-4xl md:text-5xl font-black text-rose-400 neon-text mb-4" style="font-family: 'Orbitron', sans-serif;">GAME OVER</h2>
+     <p class="text-gray-300 text-lg mb-2" style="font-family: 'Exo 2', sans-serif;">Final Score</p>
+     <p id="final-score" class="text-6xl font-black text-emerald-400 neon-text mb-2" style="font-family: 'Orbitron', sans-serif;">0</p>
+     <p class="text-gray-400 mb-6" style="font-family: 'Exo 2', sans-serif;">Targets Hit: <span id="final-hits" class="text-cyan-400">0</span></p><button id="restart-btn" class="px-8 py-4 bg-gradient-to-r from-cyan-500 to-emerald-500 text-white font-bold text-xl rounded-full pulse-glow hover:from-cyan-400 hover:to-emerald-400 transition-all duration-300" style="font-family: 'Orbitron', sans-serif;"> PLAY AGAIN </button>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Config and SDK setup
+    const defaultConfig = {
+      game_title: 'TARGET BLASTER',
+      primary_color: '#22d3ee',
+      secondary_color: '#0a0a1a',
+      text_color: '#ffffff',
+      accent_color: '#10b981',
+      highlight_color: '#f59e0b',
+      font_family: 'Orbitron',
+      font_size: 16
+    };
+
+    let config = { ...defaultConfig };
+
+    // Initialize Element SDK
+    if (window.elementSdk) {
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (newConfig) => {
+          config = { ...defaultConfig, ...newConfig };
+          applyConfig();
+        },
+        mapToCapabilities: (cfg) => ({
+          recolorables: [
+            {
+              get: () => cfg.secondary_color || defaultConfig.secondary_color,
+              set: (v) => window.elementSdk.setConfig({ secondary_color: v })
+            },
+            {
+              get: () => cfg.primary_color || defaultConfig.primary_color,
+              set: (v) => window.elementSdk.setConfig({ primary_color: v })
+            },
+            {
+              get: () => cfg.text_color || defaultConfig.text_color,
+              set: (v) => window.elementSdk.setConfig({ text_color: v })
+            },
+            {
+              get: () => cfg.accent_color || defaultConfig.accent_color,
+              set: (v) => window.elementSdk.setConfig({ accent_color: v })
+            },
+            {
+              get: () => cfg.highlight_color || defaultConfig.highlight_color,
+              set: (v) => window.elementSdk.setConfig({ highlight_color: v })
+            }
+          ],
+          borderables: [],
+          fontEditable: {
+            get: () => cfg.font_family || defaultConfig.font_family,
+            set: (v) => window.elementSdk.setConfig({ font_family: v })
+          },
+          fontSizeable: {
+            get: () => cfg.font_size || defaultConfig.font_size,
+            set: (v) => window.elementSdk.setConfig({ font_size: v })
+          }
+        }),
+        mapToEditPanelValues: (cfg) => new Map([
+          ['game_title', cfg.game_title || defaultConfig.game_title]
+        ])
+      });
+    }
+
+    function applyConfig() {
+      const title = document.getElementById('game-title');
+      const app = document.getElementById('app');
+      const baseSize = config.font_size || defaultConfig.font_size;
+      const fontFamily = config.font_family || defaultConfig.font_family;
+      
+      title.textContent = config.game_title || defaultConfig.game_title;
+      title.style.color = config.primary_color || defaultConfig.primary_color;
+      title.style.fontFamily = `${fontFamily}, sans-serif`;
+      title.style.fontSize = `${baseSize * 1.75}px`;
+      
+      // Update score displays
+      document.getElementById('score').style.color = config.accent_color || defaultConfig.accent_color;
+      document.getElementById('timer').style.color = config.highlight_color || defaultConfig.highlight_color;
+      document.getElementById('hits').style.color = config.primary_color || defaultConfig.primary_color;
+    }
+
+    // Game state
+    let score = 0;
+    let hits = 0;
+    let timeLeft = 30;
+    let gameInterval = null;
+    let spawnInterval = null;
+    let isPlaying = false;
+
+    // DOM elements
+    const gameArea = document.getElementById('game-area');
+    const scoreDisplay = document.getElementById('score');
+    const timerDisplay = document.getElementById('timer');
+    const hitsDisplay = document.getElementById('hits');
+    const startScreen = document.getElementById('start-screen');
+    const gameOverScreen = document.getElementById('game-over');
+    const finalScoreDisplay = document.getElementById('final-score');
+    const finalHitsDisplay = document.getElementById('final-hits');
+    const startBtn = document.getElementById('start-btn');
+    const restartBtn = document.getElementById('restart-btn');
+
+    // Create stars background
+    function createStars() {
+      const starsContainer = document.getElementById('stars');
+      for (let i = 0; i < 50; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        star.style.left = Math.random() * 100 + '%';
+        star.style.top = Math.random() * 100 + '%';
+        star.style.animationDelay = Math.random() * 3 + 's';
+        starsContainer.appendChild(star);
+      }
+    }
+
+    // Target types
+    const targetTypes = [
+      { 
+        points: 10, 
+        size: 60, 
+        svg: `<svg viewBox="0 0 100 100" width="100%" height="100%">
+          <circle cx="50" cy="50" r="45" fill="#ef4444" stroke="#fca5a5" stroke-width="3"/>
+          <circle cx="50" cy="50" r="30" fill="#fff" stroke="#fca5a5" stroke-width="2"/>
+          <circle cx="50" cy="50" r="15" fill="#ef4444"/>
+        </svg>`,
+        probability: 0.5
+      },
+      { 
+        points: 25, 
+        size: 45, 
+        svg: `<svg viewBox="0 0 100 100" width="100%" height="100%">
+          <circle cx="50" cy="50" r="45" fill="#f59e0b" stroke="#fcd34d" stroke-width="3"/>
+          <circle cx="50" cy="50" r="25" fill="#fff" stroke="#fcd34d" stroke-width="2"/>
+          <circle cx="50" cy="50" r="10" fill="#f59e0b"/>
+        </svg>`,
+        probability: 0.35
+      },
+      { 
+        points: 50, 
+        size: 35, 
+        svg: `<svg viewBox="0 0 100 100" width="100%" height="100%">
+          <polygon points="50,5 61,40 98,40 68,62 79,97 50,75 21,97 32,62 2,40 39,40" fill="#a855f7" stroke="#d8b4fe" stroke-width="3"/>
+        </svg>`,
+        probability: 0.15
+      }
+    ];
+
+    function getRandomTarget() {
+      const rand = Math.random();
+      let cumulative = 0;
+      for (const target of targetTypes) {
+        cumulative += target.probability;
+        if (rand <= cumulative) return target;
+      }
+      return targetTypes[0];
+    }
+
+    function spawnTarget() {
+      if (!isPlaying) return;
+      
+      const targetType = getRandomTarget();
+      const target = document.createElement('div');
+      target.className = 'target spawning';
+      target.style.width = targetType.size + 'px';
+      target.style.height = targetType.size + 'px';
+      
+      const maxX = gameArea.clientWidth - targetType.size;
+      const maxY = gameArea.clientHeight - targetType.size;
+      target.style.left = Math.random() * maxX + 'px';
+      target.style.top = Math.random() * maxY + 'px';
+      
+      target.innerHTML = targetType.svg;
+      target.dataset.points = targetType.points;
+      
+      target.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!isPlaying || target.classList.contains('hit')) return;
+        
+        target.classList.remove('spawning');
+        target.classList.add('hit');
+        
+        const points = parseInt(target.dataset.points);
+        score += points;
+        hits++;
+        
+        scoreDisplay.textContent = score;
+        scoreDisplay.classList.add('score-flash');
+        setTimeout(() => scoreDisplay.classList.remove('score-flash'), 500);
+        
+        hitsDisplay.textContent = hits;
+        
+        // Show floating points
+        showFloatingPoints(e.clientX, e.clientY, points);
+        
+        setTimeout(() => target.remove(), 300);
+      });
+      
+      gameArea.appendChild(target);
+      
+      // Remove target after a while if not hit
+      setTimeout(() => {
+        if (target.parentNode && !target.classList.contains('hit')) {
+          target.classList.add('hit');
+          setTimeout(() => target.remove(), 300);
+        }
+      }, 2000 + Math.random() * 1500);
+    }
+
+    function showFloatingPoints(x, y, points) {
+      const floater = document.createElement('div');
+      floater.className = 'fixed text-2xl font-bold text-emerald-400 pointer-events-none z-30';
+      floater.style.left = x + 'px';
+      floater.style.top = y + 'px';
+      floater.style.fontFamily = 'Orbitron, sans-serif';
+      floater.style.textShadow = '0 0 10px #10b981';
+      floater.textContent = '+' + points;
+      floater.style.animation = 'floatUp 1s ease-out forwards';
+      
+      document.body.appendChild(floater);
+      setTimeout(() => floater.remove(), 1000);
+    }
+
+    // Add float up animation
+    const floatStyle = document.createElement('style');
+    floatStyle.textContent = `
+      @keyframes floatUp {
+        0% { transform: translateY(0) scale(1); opacity: 1; }
+        100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(floatStyle);
+
+    function startGame() {
+      score = 0;
+      hits = 0;
+      timeLeft = 30;
+      isPlaying = true;
+      
+      scoreDisplay.textContent = '0';
+      hitsDisplay.textContent = '0';
+      timerDisplay.textContent = '30';
+      
+      startScreen.classList.add('hidden');
+      gameOverScreen.classList.add('hidden');
+      
+      // Clear any existing targets
+      gameArea.innerHTML = '';
+      
+      // Start timer
+      gameInterval = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = timeLeft;
+        
+        if (timeLeft <= 0) {
+          endGame();
+        }
+      }, 1000);
+      
+      // Spawn targets
+      spawnTarget();
+      spawnInterval = setInterval(() => {
+        const targetCount = gameArea.querySelectorAll('.target:not(.hit)').length;
+        if (targetCount < 5) {
+          spawnTarget();
+        }
+      }, 600);
+    }
+
+    function endGame() {
+      isPlaying = false;
+      clearInterval(gameInterval);
+      clearInterval(spawnInterval);
+      
+      finalScoreDisplay.textContent = score;
+      finalHitsDisplay.textContent = hits;
+      
+      gameOverScreen.classList.remove('hidden');
+    }
+
+    // Event listeners
+    startBtn.addEventListener('click', startGame);
+    restartBtn.addEventListener('click', startGame);
+
+    // Initialize
+    createStars();
+    applyConfig();
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d4c7f518524f8ef',t:'MTc3MjI0NTc5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

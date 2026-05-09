@@ -1,0 +1,917 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attack on Titan Defense</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="/_sdk/data_sdk.js"></script>
+  <script src="/_sdk/element_sdk.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&amp;family=Inter:wght@400;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+    
+    @keyframes titanWalk {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes slash {
+      0% { transform: rotate(0deg) scale(1); opacity: 1; }
+      100% { transform: rotate(360deg) scale(1.5); opacity: 0; }
+    }
+    
+    @keyframes explosion {
+      0% { transform: scale(0); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.8; }
+      100% { transform: scale(2); opacity: 0; }
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-5px); }
+    }
+    
+    .shake { animation: shake 0.3s ease-in-out; }
+    .titan-walk { animation: titanWalk 0.5s ease-in-out infinite; }
+    .slash-effect { animation: slash 0.3s ease-out forwards; }
+    .explosion-effect { animation: explosion 0.5s ease-out forwards; }
+    .float { animation: float 2s ease-in-out infinite; }
+    
+    .titan-sprite {
+      image-rendering: pixelated;
+      transition: all 0.3s ease;
+    }
+    
+    .titan-sprite:hover {
+      filter: brightness(1.2);
+      cursor: crosshair;
+    }
+    
+    .game-btn {
+      transition: all 0.2s ease;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    
+    .game-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    }
+    
+    .game-btn:active {
+      transform: translateY(0);
+    }
+    
+    .shop-item {
+      transition: all 0.3s ease;
+    }
+    
+    .shop-item:hover {
+      transform: scale(1.02);
+      box-shadow: 0 0 20px rgba(255, 200, 100, 0.3);
+    }
+    
+    .blood-splatter {
+      position: absolute;
+      pointer-events: none;
+    }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+ </head>
+ <body class="h-full overflow-auto m-0 p-0">
+  <div id="app" class="w-full min-h-full bg-gradient-to-b from-slate-900 via-red-950 to-slate-900"><!-- Main Menu -->
+   <div id="menu-screen" class="min-h-full flex flex-col items-center justify-center p-8">
+    <div class="text-center">
+     <h1 id="main-title" class="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-orange-400 to-red-600 mb-4" style="font-family: 'Cinzel', serif; text-shadow: 0 0 40px rgba(255,100,50,0.5);">ATTACK ON TITAN</h1>
+     <p class="text-2xl md:text-3xl text-red-300 mb-12" style="font-family: 'Cinzel', serif;">DEFENSE</p>
+     <div class="space-y-4"><button onclick="startNewGame()" class="game-btn w-64 py-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white text-xl font-bold rounded-lg shadow-lg"> ⚔️ NEW GAME </button> <br><button onclick="loadGame()" id="continue-btn" class="game-btn w-64 py-4 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white text-xl font-bold rounded-lg shadow-lg hidden"> 📜 CONTINUE </button>
+     </div>
+     <div class="mt-12 text-slate-400 text-sm max-w-md mx-auto">
+      <p>Defend humanity against waves of titans!</p>
+      <p class="mt-2">⚔️ Click titans to attack • 🛒 Buy upgrades between waves</p>
+     </div>
+    </div>
+   </div><!-- Game Screen -->
+   <div id="game-screen" class="min-h-full flex flex-col hidden"><!-- Top HUD -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 border-b-2 border-red-900">
+     <div class="flex flex-wrap justify-between items-center gap-4 max-w-6xl mx-auto">
+      <div class="flex items-center gap-6">
+       <div class="text-center"><span class="text-slate-400 text-xs">WAVE</span>
+        <p id="wave-display" class="text-2xl font-bold text-red-400" style="font-family: 'Cinzel', serif;">1</p>
+       </div>
+       <div class="text-center"><span class="text-slate-400 text-xs">GOLD</span>
+        <p id="gold-display" class="text-2xl font-bold text-yellow-400">💰 100</p>
+       </div>
+       <div class="text-center"><span class="text-slate-400 text-xs">KILLS</span>
+        <p id="kills-display" class="text-2xl font-bold text-green-400">0</p>
+       </div>
+      </div>
+      <div class="flex items-center gap-4">
+       <div class="text-center"><span class="text-slate-400 text-xs">BLADES</span>
+        <p id="blade-display" class="text-lg font-bold text-slate-200">⚔️ Lv.1</p>
+       </div>
+       <div class="text-center"><span class="text-slate-400 text-xs">ODM GEAR</span>
+        <p id="odm-display" class="text-lg font-bold text-slate-200">🎯 Lv.1</p>
+       </div>
+       <div class="text-center"><span class="text-slate-400 text-xs">THUNDER SPEARS</span>
+        <p id="spear-display" class="text-lg font-bold text-orange-400">💥 0</p>
+       </div>
+      </div>
+     </div>
+    </div><!-- Base Health Bar -->
+    <div class="bg-slate-900 p-3 border-b border-slate-700">
+     <div class="max-w-6xl mx-auto">
+      <div class="flex items-center gap-3"><span id="base-name" class="text-slate-300 font-bold" style="font-family: 'Cinzel', serif;">🏰 WALL MARIA</span>
+       <div class="flex-1 h-6 bg-slate-800 rounded-full overflow-hidden border border-slate-600">
+        <div id="base-health-bar" class="h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-300" style="width: 100%;"></div>
+       </div><span id="base-health-text" class="text-green-400 font-bold min-w-24 text-right">1000/1000</span>
+      </div>
+     </div>
+    </div><!-- Battlefield -->
+    <div id="battlefield" class="flex-1 relative overflow-hidden min-h-96" style="background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);"><!-- Wall Background -->
+     <div class="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-stone-800 to-stone-700 border-t-4 border-stone-600">
+      <div class="absolute inset-0 opacity-30" style="background: repeating-linear-gradient(90deg, transparent, transparent 40px, #555 40px, #555 42px);"></div>
+     </div><!-- Titans Container -->
+     <div id="titans-container" class="absolute inset-0 pointer-events-none"><!-- Titans will spawn here -->
+     </div><!-- Effects Container -->
+     <div id="effects-container" class="absolute inset-0 pointer-events-none"><!-- Attack effects here -->
+     </div><!-- Wave Announcement -->
+     <div id="wave-announcement" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-500">
+      <div class="text-center">
+       <p class="text-6xl font-black text-red-500" style="font-family: 'Cinzel', serif; text-shadow: 0 0 30px rgba(255,0,0,0.8);">WAVE <span id="wave-num">1</span></p>
+       <p id="wave-boss-name" class="text-2xl text-orange-400 mt-2"></p>
+      </div>
+     </div>
+    </div><!-- Bottom Controls -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 border-t-2 border-red-900">
+     <div class="flex justify-center gap-4 flex-wrap"><button onclick="useThunderSpear()" id="spear-btn" class="game-btn px-6 py-3 bg-gradient-to-r from-orange-700 to-orange-600 hover:from-orange-600 hover:to-orange-500 text-white font-bold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"> 💥 THUNDER SPEAR </button> <button onclick="openShop()" id="shop-btn" class="game-btn px-6 py-3 bg-gradient-to-r from-yellow-700 to-yellow-600 hover:from-yellow-600 hover:to-yellow-500 text-white font-bold rounded-lg"> 🛒 SHOP </button> <button onclick="saveAndQuit()" class="game-btn px-6 py-3 bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-white font-bold rounded-lg"> 💾 SAVE &amp; QUIT </button>
+     </div>
+    </div>
+   </div><!-- Shop Modal -->
+   <div id="shop-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-gradient-to-b from-slate-800 to-slate-900 rounded-2xl max-w-2xl w-full max-h-full overflow-auto border-2 border-yellow-600/50 shadow-2xl">
+     <div class="p-6 border-b border-slate-700">
+      <div class="flex justify-between items-center">
+       <h2 class="text-3xl font-bold text-yellow-400" style="font-family: 'Cinzel', serif;">🛒 SUPPLY DEPOT</h2><button onclick="closeShop()" class="text-slate-400 hover:text-white text-3xl">×</button>
+      </div>
+      <p id="shop-gold" class="text-yellow-300 mt-2">💰 Gold: 100</p>
+     </div>
+     <div class="p-6 space-y-4"><!-- Blade Upgrade -->
+      <div class="shop-item bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+       <div class="flex justify-between items-center">
+        <div>
+         <h3 class="text-xl font-bold text-slate-200">⚔️ Upgrade Blades</h3>
+         <p class="text-slate-400 text-sm">Increase attack damage</p>
+         <p id="blade-info" class="text-green-400 text-sm mt-1">Current: Lv.1 (10 DMG)</p>
+        </div><button onclick="upgradeBlade()" id="upgrade-blade-btn" class="game-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold rounded-lg"> 50 💰 </button>
+       </div>
+      </div><!-- ODM Upgrade -->
+      <div class="shop-item bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+       <div class="flex justify-between items-center">
+        <div>
+         <h3 class="text-xl font-bold text-slate-200">🎯 Upgrade ODM Gear</h3>
+         <p class="text-slate-400 text-sm">Faster attack speed</p>
+         <p id="odm-info" class="text-green-400 text-sm mt-1">Current: Lv.1 (1.0s cooldown)</p>
+        </div><button onclick="upgradeODM()" id="upgrade-odm-btn" class="game-btn px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white font-bold rounded-lg"> 75 💰 </button>
+       </div>
+      </div><!-- Thunder Spears -->
+      <div class="shop-item bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+       <div class="flex justify-between items-center">
+        <div>
+         <h3 class="text-xl font-bold text-slate-200">💥 Thunder Spear</h3>
+         <p class="text-slate-400 text-sm">Massive AOE damage (500 DMG)</p>
+         <p id="spear-info" class="text-orange-400 text-sm mt-1">Owned: 0</p>
+        </div><button onclick="buyThunderSpear()" id="buy-spear-btn" class="game-btn px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-500 text-white font-bold rounded-lg"> 100 💰 </button>
+       </div>
+      </div><!-- Repair Base -->
+      <div class="shop-item bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+       <div class="flex justify-between items-center">
+        <div>
+         <h3 class="text-xl font-bold text-slate-200">🏰 Repair Wall</h3>
+         <p class="text-slate-400 text-sm">Restore 200 wall HP</p>
+         <p id="repair-info" class="text-red-400 text-sm mt-1">Wall HP: 1000/1000</p>
+        </div><button onclick="repairBase()" id="repair-btn" class="game-btn px-4 py-2 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold rounded-lg"> 30 💰 </button>
+       </div>
+      </div><!-- Upgrade Max HP -->
+      <div class="shop-item bg-slate-800/50 rounded-xl p-4 border border-slate-600">
+       <div class="flex justify-between items-center">
+        <div>
+         <h3 class="text-xl font-bold text-slate-200">🛡️ Reinforce Wall</h3>
+         <p class="text-slate-400 text-sm">+500 max wall HP</p>
+         <p id="reinforce-info" class="text-cyan-400 text-sm mt-1">Max HP: 1000</p>
+        </div><button onclick="reinforceBase()" id="reinforce-btn" class="game-btn px-4 py-2 bg-gradient-to-r from-cyan-600 to-cyan-500 text-white font-bold rounded-lg"> 150 💰 </button>
+       </div>
+      </div>
+     </div>
+     <div class="p-4 border-t border-slate-700 text-center"><button onclick="closeShop()" class="game-btn px-8 py-3 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white font-bold rounded-lg text-lg"> CLOSE SHOP </button>
+     </div>
+    </div>
+   </div><!-- Game Over Modal -->
+   <div id="gameover-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 hidden z-50">
+    <div class="text-center">
+     <h2 class="text-6xl font-black text-red-600 mb-4" style="font-family: 'Cinzel', serif; text-shadow: 0 0 30px rgba(255,0,0,0.8);">HUMANITY LOST</h2>
+     <p class="text-2xl text-slate-300 mb-2">The wall has fallen...</p>
+     <p id="final-stats" class="text-xl text-slate-400 mb-8">Waves Survived: 0 | Titans Killed: 0</p><button onclick="restartGame()" class="game-btn px-8 py-4 bg-gradient-to-r from-red-700 to-red-600 hover:from-red-600 hover:to-red-500 text-white text-xl font-bold rounded-lg"> 🔄 TRY AGAIN </button>
+    </div>
+   </div><!-- Victory Modal -->
+   <div id="victory-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-4 hidden z-50">
+    <div class="text-center">
+     <h2 class="text-6xl font-black text-yellow-400 mb-4" style="font-family: 'Cinzel', serif; text-shadow: 0 0 30px rgba(255,200,0,0.8);">🏆 VICTORY! 🏆</h2>
+     <p class="text-2xl text-green-400 mb-2">All titans have been defeated!</p>
+     <p class="text-xl text-slate-300 mb-8">Humanity is saved... for now.</p><button onclick="restartGame()" class="game-btn px-8 py-4 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-500 hover:to-yellow-400 text-slate-900 text-xl font-bold rounded-lg"> 🎮 PLAY AGAIN </button>
+    </div>
+   </div>
+  </div>
+  <script>
+    // Default configuration
+    const defaultConfig = {
+      game_title: 'ATTACK ON TITAN',
+      base_name: 'WALL MARIA',
+      primary_color: '#dc2626',
+      secondary_color: '#1e293b',
+      text_color: '#f1f5f9',
+      accent_color: '#f59e0b',
+      action_color: '#16a34a'
+    };
+
+    // Game State
+    let gameState = {
+      gold: 100,
+      wave: 1,
+      bladeLevel: 1,
+      odmLevel: 1,
+      thunderSpears: 0,
+      baseHealth: 1000,
+      maxBaseHealth: 1000,
+      titansKilled: 0,
+      isPlaying: false,
+      canAttack: true,
+      titans: [],
+      waveInProgress: false,
+      saveId: null
+    };
+
+    // 7 Main Titans Configuration
+    const BOSS_TITANS = [
+      { name: 'Colossal Titan', emoji: '🔥', color: '#ff4444', size: 120, hp: 500, damage: 100, gold: 200 },
+      { name: 'Armored Titan', emoji: '🛡️', color: '#888888', size: 90, hp: 400, damage: 80, gold: 150 },
+      { name: 'Female Titan', emoji: '👸', color: '#ff88cc', size: 80, hp: 350, damage: 70, gold: 130 },
+      { name: 'Beast Titan', emoji: '🦍', color: '#8B4513', size: 100, hp: 450, damage: 90, gold: 180 },
+      { name: 'Jaw Titan', emoji: '🦷', color: '#ffcc00', size: 60, hp: 250, damage: 60, gold: 100 },
+      { name: 'Cart Titan', emoji: '🐎', color: '#996633', size: 70, hp: 300, damage: 50, gold: 120 },
+      { name: 'War Hammer Titan', emoji: '🔨', color: '#ffffff', size: 85, hp: 380, damage: 85, gold: 160 }
+    ];
+
+    // Normal Titan Types
+    const NORMAL_TITANS = [
+      { name: 'Small Titan', emoji: '👹', size: 40, baseHp: 30, baseDamage: 10, gold: 15 },
+      { name: 'Medium Titan', emoji: '👺', size: 55, baseHp: 60, baseDamage: 20, gold: 25 },
+      { name: 'Large Titan', emoji: '💀', size: 70, baseHp: 100, baseDamage: 35, gold: 40 },
+      { name: 'Abnormal Titan', emoji: '🤪', size: 50, baseHp: 50, baseDamage: 45, gold: 35 }
+    ];
+
+    let titanIdCounter = 0;
+    let gameLoop = null;
+    let currentSaveData = null;
+    let allSaveData = [];
+
+    // Data SDK Handler
+    const dataHandler = {
+      onDataChanged(data) {
+        allSaveData = data;
+        if (data.length > 0) {
+          document.getElementById('continue-btn').classList.remove('hidden');
+          currentSaveData = data[data.length - 1];
+        } else {
+          document.getElementById('continue-btn').classList.add('hidden');
+          currentSaveData = null;
+        }
+      }
+    };
+
+    // Element SDK Implementation
+    function initElementSdk() {
+      if (!window.elementSdk) return;
+      
+      window.elementSdk.init({
+        defaultConfig,
+        onConfigChange: async (config) => {
+          const title = config.game_title || defaultConfig.game_title;
+          const baseName = config.base_name || defaultConfig.base_name;
+          const primaryColor = config.primary_color || defaultConfig.primary_color;
+          const secondaryColor = config.secondary_color || defaultConfig.secondary_color;
+          const textColor = config.text_color || defaultConfig.text_color;
+          
+          document.getElementById('main-title').textContent = title;
+          document.getElementById('base-name').innerHTML = `🏰 ${baseName}`;
+          
+          document.querySelectorAll('.game-btn').forEach(btn => {
+            if (btn.classList.contains('from-red-700')) {
+              btn.style.background = `linear-gradient(to right, ${primaryColor}, ${primaryColor}dd)`;
+            }
+          });
+        },
+        mapToCapabilities: (config) => ({
+          recolorables: [
+            {
+              get: () => config.primary_color || defaultConfig.primary_color,
+              set: (v) => { config.primary_color = v; window.elementSdk.setConfig({ primary_color: v }); }
+            },
+            {
+              get: () => config.secondary_color || defaultConfig.secondary_color,
+              set: (v) => { config.secondary_color = v; window.elementSdk.setConfig({ secondary_color: v }); }
+            },
+            {
+              get: () => config.text_color || defaultConfig.text_color,
+              set: (v) => { config.text_color = v; window.elementSdk.setConfig({ text_color: v }); }
+            },
+            {
+              get: () => config.accent_color || defaultConfig.accent_color,
+              set: (v) => { config.accent_color = v; window.elementSdk.setConfig({ accent_color: v }); }
+            },
+            {
+              get: () => config.action_color || defaultConfig.action_color,
+              set: (v) => { config.action_color = v; window.elementSdk.setConfig({ action_color: v }); }
+            }
+          ],
+          borderables: [],
+          fontEditable: undefined,
+          fontSizeable: undefined
+        }),
+        mapToEditPanelValues: (config) => new Map([
+          ['game_title', config.game_title || defaultConfig.game_title],
+          ['base_name', config.base_name || defaultConfig.base_name]
+        ])
+      });
+    }
+
+    // Initialize SDKs
+    async function initSDKs() {
+      if (window.dataSdk) {
+        const result = await window.dataSdk.init(dataHandler);
+        if (!result.isOk) {
+          console.error('Failed to initialize Data SDK');
+        }
+      }
+      initElementSdk();
+    }
+
+    initSDKs();
+
+    // Game Functions
+    function startNewGame() {
+      gameState = {
+        gold: 100,
+        wave: 1,
+        bladeLevel: 1,
+        odmLevel: 1,
+        thunderSpears: 0,
+        baseHealth: 1000,
+        maxBaseHealth: 1000,
+        titansKilled: 0,
+        isPlaying: true,
+        canAttack: true,
+        titans: [],
+        waveInProgress: false,
+        saveId: null
+      };
+      showGameScreen();
+      startWave();
+    }
+
+    function loadGame() {
+      if (currentSaveData) {
+        gameState = {
+          gold: currentSaveData.gold || 100,
+          wave: currentSaveData.wave || 1,
+          bladeLevel: currentSaveData.blade_level || 1,
+          odmLevel: currentSaveData.odm_level || 1,
+          thunderSpears: currentSaveData.thunder_spears || 0,
+          baseHealth: currentSaveData.base_health || 1000,
+          maxBaseHealth: currentSaveData.max_base_health || 1000,
+          titansKilled: currentSaveData.titans_killed || 0,
+          isPlaying: true,
+          canAttack: true,
+          titans: [],
+          waveInProgress: false,
+          saveId: currentSaveData.__backendId
+        };
+        showGameScreen();
+        updateHUD();
+        startWave();
+      }
+    }
+
+    function showGameScreen() {
+      document.getElementById('menu-screen').classList.add('hidden');
+      document.getElementById('game-screen').classList.remove('hidden');
+      updateHUD();
+    }
+
+    function showMenuScreen() {
+      document.getElementById('game-screen').classList.add('hidden');
+      document.getElementById('menu-screen').classList.remove('hidden');
+      if (gameLoop) {
+        cancelAnimationFrame(gameLoop);
+        gameLoop = null;
+      }
+      clearTitans();
+    }
+
+    function updateHUD() {
+      document.getElementById('wave-display').textContent = gameState.wave;
+      document.getElementById('gold-display').textContent = `💰 ${gameState.gold}`;
+      document.getElementById('kills-display').textContent = gameState.titansKilled;
+      document.getElementById('blade-display').textContent = `⚔️ Lv.${gameState.bladeLevel}`;
+      document.getElementById('odm-display').textContent = `🎯 Lv.${gameState.odmLevel}`;
+      document.getElementById('spear-display').textContent = `💥 ${gameState.thunderSpears}`;
+      
+      const healthPercent = (gameState.baseHealth / gameState.maxBaseHealth) * 100;
+      document.getElementById('base-health-bar').style.width = `${healthPercent}%`;
+      document.getElementById('base-health-text').textContent = `${gameState.baseHealth}/${gameState.maxBaseHealth}`;
+      
+      const healthBar = document.getElementById('base-health-bar');
+      if (healthPercent > 50) {
+        healthBar.className = 'h-full bg-gradient-to-r from-green-600 to-green-400 transition-all duration-300';
+      } else if (healthPercent > 25) {
+        healthBar.className = 'h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-300';
+      } else {
+        healthBar.className = 'h-full bg-gradient-to-r from-red-600 to-red-400 transition-all duration-300';
+      }
+      
+      document.getElementById('spear-btn').disabled = gameState.thunderSpears <= 0;
+    }
+
+    function updateShopUI() {
+      document.getElementById('shop-gold').textContent = `💰 Gold: ${gameState.gold}`;
+      
+      const bladeDmg = 10 + (gameState.bladeLevel - 1) * 8;
+      const bladeCost = 50 * gameState.bladeLevel;
+      document.getElementById('blade-info').textContent = `Current: Lv.${gameState.bladeLevel} (${bladeDmg} DMG)`;
+      document.getElementById('upgrade-blade-btn').textContent = `${bladeCost} 💰`;
+      document.getElementById('upgrade-blade-btn').disabled = gameState.gold < bladeCost;
+      
+      const odmCooldown = Math.max(0.3, 1.0 - (gameState.odmLevel - 1) * 0.1).toFixed(1);
+      const odmCost = 75 * gameState.odmLevel;
+      document.getElementById('odm-info').textContent = `Current: Lv.${gameState.odmLevel} (${odmCooldown}s cooldown)`;
+      document.getElementById('upgrade-odm-btn').textContent = `${odmCost} 💰`;
+      document.getElementById('upgrade-odm-btn').disabled = gameState.gold < odmCost;
+      
+      document.getElementById('spear-info').textContent = `Owned: ${gameState.thunderSpears}`;
+      document.getElementById('buy-spear-btn').disabled = gameState.gold < 100;
+      
+      document.getElementById('repair-info').textContent = `Wall HP: ${gameState.baseHealth}/${gameState.maxBaseHealth}`;
+      document.getElementById('repair-btn').disabled = gameState.gold < 30 || gameState.baseHealth >= gameState.maxBaseHealth;
+      
+      document.getElementById('reinforce-info').textContent = `Max HP: ${gameState.maxBaseHealth}`;
+      document.getElementById('reinforce-btn').disabled = gameState.gold < 150;
+    }
+
+    function openShop() {
+      if (gameState.waveInProgress) return;
+      updateShopUI();
+      document.getElementById('shop-modal').classList.remove('hidden');
+    }
+
+    function closeShop() {
+      document.getElementById('shop-modal').classList.add('hidden');
+    }
+
+    function upgradeBlade() {
+      const cost = 50 * gameState.bladeLevel;
+      if (gameState.gold >= cost) {
+        gameState.gold -= cost;
+        gameState.bladeLevel++;
+        updateHUD();
+        updateShopUI();
+      }
+    }
+
+    function upgradeODM() {
+      const cost = 75 * gameState.odmLevel;
+      if (gameState.gold >= cost) {
+        gameState.gold -= cost;
+        gameState.odmLevel++;
+        updateHUD();
+        updateShopUI();
+      }
+    }
+
+    function buyThunderSpear() {
+      if (gameState.gold >= 100) {
+        gameState.gold -= 100;
+        gameState.thunderSpears++;
+        updateHUD();
+        updateShopUI();
+      }
+    }
+
+    function repairBase() {
+      if (gameState.gold >= 30 && gameState.baseHealth < gameState.maxBaseHealth) {
+        gameState.gold -= 30;
+        gameState.baseHealth = Math.min(gameState.maxBaseHealth, gameState.baseHealth + 200);
+        updateHUD();
+        updateShopUI();
+      }
+    }
+
+    function reinforceBase() {
+      if (gameState.gold >= 150) {
+        gameState.gold -= 150;
+        gameState.maxBaseHealth += 500;
+        gameState.baseHealth += 500;
+        updateHUD();
+        updateShopUI();
+      }
+    }
+
+    function useThunderSpear() {
+      if (gameState.thunderSpears <= 0 || gameState.titans.length === 0) return;
+      
+      gameState.thunderSpears--;
+      updateHUD();
+      
+      // Create explosion effect
+      const container = document.getElementById('effects-container');
+      const explosion = document.createElement('div');
+      explosion.className = 'absolute explosion-effect';
+      explosion.innerHTML = `<div class="text-8xl">💥</div>`;
+      explosion.style.left = '50%';
+      explosion.style.top = '50%';
+      explosion.style.transform = 'translate(-50%, -50%)';
+      container.appendChild(explosion);
+      
+      setTimeout(() => explosion.remove(), 500);
+      
+      // Damage all titans
+      gameState.titans.forEach(titan => {
+        titan.hp -= 500;
+        createDamageNumber(titan.x, titan.y, 500, true);
+      });
+    }
+
+    function startWave() {
+      gameState.waveInProgress = true;
+      document.getElementById('shop-btn').disabled = true;
+      
+      // Show wave announcement
+      const announcement = document.getElementById('wave-announcement');
+      document.getElementById('wave-num').textContent = gameState.wave;
+      
+      // Check for boss wave
+      const bossIndex = gameState.wave - 1;
+      if (bossIndex < BOSS_TITANS.length) {
+        document.getElementById('wave-boss-name').textContent = `⚠️ ${BOSS_TITANS[bossIndex].name} APPROACHES! ⚠️`;
+      } else {
+        document.getElementById('wave-boss-name').textContent = '';
+      }
+      
+      announcement.style.opacity = '1';
+      
+      setTimeout(() => {
+        announcement.style.opacity = '0';
+        spawnWaveTitans();
+        runGameLoop();
+      }, 2000);
+    }
+
+    function spawnWaveTitans() {
+      const normalCount = 3 + Math.floor(gameState.wave * 1.5);
+      const waveMultiplier = 1 + (gameState.wave - 1) * 0.3;
+      
+      // Spawn normal titans
+      for (let i = 0; i < normalCount; i++) {
+        setTimeout(() => {
+          const type = NORMAL_TITANS[Math.floor(Math.random() * NORMAL_TITANS.length)];
+          spawnTitan(type, waveMultiplier, false);
+        }, i * 500);
+      }
+      
+      // Spawn boss titan for waves 1-7
+      const bossIndex = gameState.wave - 1;
+      if (bossIndex < BOSS_TITANS.length) {
+        setTimeout(() => {
+          const boss = BOSS_TITANS[bossIndex];
+          spawnTitan(boss, waveMultiplier, true);
+        }, normalCount * 500 + 1000);
+      }
+    }
+
+    function spawnTitan(type, multiplier, isBoss) {
+      const container = document.getElementById('titans-container');
+      const containerRect = container.getBoundingClientRect();
+      
+      const titan = {
+        id: titanIdCounter++,
+        name: type.name,
+        emoji: type.emoji,
+        hp: Math.floor((isBoss ? type.hp : type.baseHp) * multiplier),
+        maxHp: Math.floor((isBoss ? type.hp : type.baseHp) * multiplier),
+        damage: Math.floor((isBoss ? type.damage : type.baseDamage) * multiplier),
+        gold: Math.floor(type.gold * multiplier),
+        size: type.size,
+        color: type.color || '#ff6666',
+        x: Math.random() * (containerRect.width - 100) + 50,
+        y: -type.size,
+        speed: isBoss ? 0.3 : 0.5 + Math.random() * 0.5,
+        isBoss: isBoss
+      };
+      
+      gameState.titans.push(titan);
+      
+      const titanEl = document.createElement('div');
+      titanEl.id = `titan-${titan.id}`;
+      titanEl.className = 'absolute titan-sprite titan-walk cursor-crosshair pointer-events-auto';
+      titanEl.style.left = `${titan.x}px`;
+      titanEl.style.top = `${titan.y}px`;
+      titanEl.style.fontSize = `${titan.size}px`;
+      titanEl.style.filter = `drop-shadow(0 0 10px ${titan.color})`;
+      titanEl.innerHTML = `
+        <div class="relative">
+          <div class="text-center">${titan.emoji}</div>
+          <div class="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-2 bg-gray-800 rounded-full overflow-hidden">
+            <div class="h-full bg-red-500 transition-all duration-200" style="width: 100%;"></div>
+          </div>
+          ${isBoss ? `<div class="absolute -top-6 left-1/2 transform -translate-x-1/2 text-xs text-yellow-400 font-bold whitespace-nowrap">⭐ ${titan.name}</div>` : ''}
+        </div>
+      `;
+      
+      titanEl.onclick = (e) => {
+        e.stopPropagation();
+        attackTitan(titan.id);
+      };
+      
+      container.appendChild(titanEl);
+    }
+
+    function attackTitan(titanId) {
+      if (!gameState.canAttack) return;
+      
+      const titan = gameState.titans.find(t => t.id === titanId);
+      if (!titan) return;
+      
+      const damage = 10 + (gameState.bladeLevel - 1) * 8;
+      titan.hp -= damage;
+      
+      createSlashEffect(titan.x, titan.y);
+      createDamageNumber(titan.x, titan.y, damage, false);
+      
+      // Update titan health bar
+      const titanEl = document.getElementById(`titan-${titan.id}`);
+      if (titanEl) {
+        const healthBar = titanEl.querySelector('.bg-red-500');
+        if (healthBar) {
+          healthBar.style.width = `${Math.max(0, (titan.hp / titan.maxHp) * 100)}%`;
+        }
+      }
+      
+      // Attack cooldown
+      gameState.canAttack = false;
+      const cooldown = Math.max(300, 1000 - (gameState.odmLevel - 1) * 100);
+      setTimeout(() => {
+        gameState.canAttack = true;
+      }, cooldown);
+    }
+
+    function createSlashEffect(x, y) {
+      const container = document.getElementById('effects-container');
+      const slash = document.createElement('div');
+      slash.className = 'absolute slash-effect text-4xl';
+      slash.innerHTML = '⚔️';
+      slash.style.left = `${x}px`;
+      slash.style.top = `${y}px`;
+      container.appendChild(slash);
+      
+      setTimeout(() => slash.remove(), 300);
+    }
+
+    function createDamageNumber(x, y, damage, isCrit) {
+      const container = document.getElementById('effects-container');
+      const dmgNum = document.createElement('div');
+      dmgNum.className = 'absolute font-bold pointer-events-none';
+      dmgNum.style.left = `${x + Math.random() * 40 - 20}px`;
+      dmgNum.style.top = `${y}px`;
+      dmgNum.style.fontSize = isCrit ? '24px' : '18px';
+      dmgNum.style.color = isCrit ? '#ff8800' : '#ffff00';
+      dmgNum.style.textShadow = '2px 2px 4px #000';
+      dmgNum.textContent = `-${damage}`;
+      dmgNum.style.transition = 'all 0.8s ease-out';
+      container.appendChild(dmgNum);
+      
+      requestAnimationFrame(() => {
+        dmgNum.style.top = `${y - 50}px`;
+        dmgNum.style.opacity = '0';
+      });
+      
+      setTimeout(() => dmgNum.remove(), 800);
+    }
+
+    function runGameLoop() {
+      if (!gameState.isPlaying) return;
+      
+      const container = document.getElementById('titans-container');
+      const containerRect = container.getBoundingClientRect();
+      const wallY = containerRect.height - 130;
+      
+      // Update titans
+      for (let i = gameState.titans.length - 1; i >= 0; i--) {
+        const titan = gameState.titans[i];
+        
+        // Check if dead
+        if (titan.hp <= 0) {
+          killTitan(titan, i);
+          continue;
+        }
+        
+        // Move toward wall
+        if (titan.y < wallY) {
+          titan.y += titan.speed;
+        } else {
+          // Attack wall
+          gameState.baseHealth -= Math.ceil(titan.damage / 60);
+          
+          // Shake effect
+          const baseHealthBar = document.getElementById('base-health-bar').parentElement;
+          baseHealthBar.classList.add('shake');
+          setTimeout(() => baseHealthBar.classList.remove('shake'), 300);
+        }
+        
+        // Update titan position
+        const titanEl = document.getElementById(`titan-${titan.id}`);
+        if (titanEl) {
+          titanEl.style.top = `${titan.y}px`;
+        }
+      }
+      
+      updateHUD();
+      
+      // Check game over
+      if (gameState.baseHealth <= 0) {
+        gameOver();
+        return;
+      }
+      
+      // Check wave complete
+      if (gameState.titans.length === 0 && gameState.waveInProgress) {
+        waveComplete();
+        return;
+      }
+      
+      gameLoop = requestAnimationFrame(runGameLoop);
+    }
+
+    function killTitan(titan, index) {
+      gameState.titans.splice(index, 1);
+      gameState.gold += titan.gold;
+      gameState.titansKilled++;
+      
+      const titanEl = document.getElementById(`titan-${titan.id}`);
+      if (titanEl) {
+        titanEl.style.transition = 'all 0.3s ease';
+        titanEl.style.opacity = '0';
+        titanEl.style.transform = 'scale(0.5)';
+        setTimeout(() => titanEl.remove(), 300);
+      }
+      
+      // Gold popup
+      const container = document.getElementById('effects-container');
+      const goldPopup = document.createElement('div');
+      goldPopup.className = 'absolute font-bold text-yellow-400 pointer-events-none';
+      goldPopup.style.left = `${titan.x}px`;
+      goldPopup.style.top = `${titan.y}px`;
+      goldPopup.style.fontSize = '20px';
+      goldPopup.style.textShadow = '2px 2px 4px #000';
+      goldPopup.textContent = `+${titan.gold} 💰`;
+      goldPopup.style.transition = 'all 1s ease-out';
+      container.appendChild(goldPopup);
+      
+      requestAnimationFrame(() => {
+        goldPopup.style.top = `${titan.y - 60}px`;
+        goldPopup.style.opacity = '0';
+      });
+      
+      setTimeout(() => goldPopup.remove(), 1000);
+      
+      updateHUD();
+    }
+
+    function clearTitans() {
+      gameState.titans = [];
+      const container = document.getElementById('titans-container');
+      container.innerHTML = '';
+    }
+
+    function waveComplete() {
+      gameState.waveInProgress = false;
+      document.getElementById('shop-btn').disabled = false;
+      
+      // Check victory (completed all 7 boss waves)
+      if (gameState.wave >= 7) {
+        victory();
+        return;
+      }
+      
+      // Bonus gold
+      const bonus = 50 + gameState.wave * 25;
+      gameState.gold += bonus;
+      
+      // Show wave complete message
+      const announcement = document.getElementById('wave-announcement');
+      document.getElementById('wave-num').textContent = '✓';
+      document.getElementById('wave-boss-name').textContent = `Wave Complete! +${bonus} 💰 bonus`;
+      announcement.style.opacity = '1';
+      
+      setTimeout(() => {
+        announcement.style.opacity = '0';
+        gameState.wave++;
+        updateHUD();
+        
+        // Auto-open shop between waves
+        setTimeout(() => openShop(), 500);
+      }, 2000);
+    }
+
+    function gameOver() {
+      gameState.isPlaying = false;
+      if (gameLoop) {
+        cancelAnimationFrame(gameLoop);
+        gameLoop = null;
+      }
+      
+      document.getElementById('final-stats').textContent = 
+        `Waves Survived: ${gameState.wave} | Titans Killed: ${gameState.titansKilled}`;
+      document.getElementById('gameover-modal').classList.remove('hidden');
+      
+      // Delete save on game over
+      if (currentSaveData && currentSaveData.__backendId && window.dataSdk) {
+        window.dataSdk.delete(currentSaveData);
+      }
+    }
+
+    function victory() {
+      gameState.isPlaying = false;
+      if (gameLoop) {
+        cancelAnimationFrame(gameLoop);
+        gameLoop = null;
+      }
+      
+      document.getElementById('victory-modal').classList.remove('hidden');
+      
+      // Delete save on victory
+      if (currentSaveData && currentSaveData.__backendId && window.dataSdk) {
+        window.dataSdk.delete(currentSaveData);
+      }
+    }
+
+    function restartGame() {
+      document.getElementById('gameover-modal').classList.add('hidden');
+      document.getElementById('victory-modal').classList.add('hidden');
+      clearTitans();
+      showMenuScreen();
+    }
+
+    async function saveAndQuit() {
+      if (!window.dataSdk) {
+        showMenuScreen();
+        return;
+      }
+      
+      const saveData = {
+        id: currentSaveData ? currentSaveData.id : `save_${Date.now()}`,
+        gold: gameState.gold,
+        wave: gameState.wave,
+        blade_level: gameState.bladeLevel,
+        odm_level: gameState.odmLevel,
+        thunder_spears: gameState.thunderSpears,
+        base_health: gameState.baseHealth,
+        max_base_health: gameState.maxBaseHealth,
+        titans_killed: gameState.titansKilled,
+        created_at: new Date().toISOString()
+      };
+      
+      let result;
+      if (currentSaveData && currentSaveData.__backendId) {
+        result = await window.dataSdk.update({ ...saveData, __backendId: currentSaveData.__backendId });
+      } else {
+        if (allSaveData.length >= 999) {
+          showMenuScreen();
+          return;
+        }
+        result = await window.dataSdk.create(saveData);
+      }
+      
+      if (result.isOk) {
+        showMenuScreen();
+      } else {
+        showMenuScreen();
+      }
+    }
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9d4caf1704c7bc78',t:'MTc3MjI0Nzc1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
